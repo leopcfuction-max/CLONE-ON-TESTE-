@@ -1,0 +1,6 @@
+{
+  "name": "Angel Voyage",
+  "description": "Plataforma de Reservas e Curadoria de Viagens de Luxo de Alto Padrão.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
