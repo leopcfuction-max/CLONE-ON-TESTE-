@@ -4,6 +4,7 @@ import {
   AlertCircle, FileText, Download, Clock, AlertTriangle, RefreshCw, HelpCircle
 } from 'lucide-react';
 import QRCode from 'qrcode';
+import html2canvas from 'html2canvas';
 import { TravelPackage, Passenger, Reservation } from '../types';
 
 interface BookingWizardProps {
@@ -304,22 +305,14 @@ export default function BookingWizard({ packageData, currentUser, onBookingSucce
       )
       .join('');
 
-    const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8" />
-<title>Voucher ${confirmationCode}</title>
-<style>
-  @page { size: A4; margin: 0; }
+    const styles = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
+  .voucher-root {
     font-family: 'Georgia', 'Times New Roman', serif;
     color: #0f264c;
-    background: #f4f5f7;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    background: #ffffff;
   }
-  .page { width: 210mm; min-height: 297mm; margin: 0 auto; background: #ffffff; padding: 28mm 22mm; }
+  .page { width: 794px; background: #ffffff; padding: 56px 64px; }
   .top { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 18px; }
   .brand { color: #b08d57; }
   .brand .name { font-size: 18px; font-weight: 700; letter-spacing: .5px; }
@@ -358,10 +351,9 @@ export default function BookingWizard({ packageData, currentUser, onBookingSucce
   .qr-box img { width: 120px; height: 120px; background: #fff; border-radius: 8px; padding: 6px; }
   .qr-box .qr-fallback { width: 120px; height: 120px; background: #fff; border-radius: 8px; margin: 0 auto; display: flex; align-items: center; justify-content: center; color: #0f264c; font-size: 9px; font-family: Arial, sans-serif; }
   .qr-box .qr-label { color: #c6d2e3; font-size: 9px; letter-spacing: 2px; margin-top: 12px; font-family: Arial, sans-serif; }
-  @media print { body { background: #fff; } .page { padding: 24mm 20mm; } }
-</style>
-</head>
-<body>
+`;
+
+    const bodyHtml = `
   <div class="page">
     <div class="top">
       <div class="brand">
@@ -409,23 +401,38 @@ export default function BookingWizard({ packageData, currentUser, onBookingSucce
         <div class="qr-label">QUICK CHECK-IN</div>
       </div>
     </div>
-  </div>
-  <script>
-    window.onload = function () {
-      setTimeout(function () { window.print(); }, 350);
-    };
-  </script>
-</body>
-</html>`;
+  </div>`;
 
-    const printWindow = window.open('', '_blank', 'width=900,height=1000');
-    if (!printWindow) {
-      alert('Habilite os pop-ups para emitir o voucher em PDF.');
-      return;
+    // Monta o voucher fora da tela e converte em imagem PNG
+    const container = document.createElement('div');
+    container.className = 'voucher-root';
+    container.style.position = 'fixed';
+    container.style.left = '-10000px';
+    container.style.top = '0';
+    container.style.width = '794px';
+    container.innerHTML = `<style>${styles}</style>${bodyHtml}`;
+    document.body.appendChild(container);
+
+    try {
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `Voucher-AngelVoyage-${confirmationCode}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('[v0] Falha ao gerar PNG do voucher:', err);
+      alert('Não foi possível gerar o voucher em PNG. Tente novamente.');
+    } finally {
+      document.body.removeChild(container);
     }
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
   };
 
   // Turn time seconds to readable clock MM:SS
