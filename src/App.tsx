@@ -16,7 +16,14 @@ import RefundDashboard from './components/RefundDashboard';
 import AuthScreen from './components/AuthScreen';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<Tab | 'detail' | 'checkout' | 'reembolsos'>('inicio');
+  // When the user returns from a Supabase password-recovery email, the URL
+  // contains `#type=recovery`. In that case open the auth (login) tab so the
+  // "new password" screen is shown immediately.
+  const isRecovery =
+    typeof window !== 'undefined' && window.location.hash.includes('type=recovery');
+  const [activeTab, setActiveTab] = useState<Tab | 'detail' | 'checkout' | 'reembolsos'>(
+    isRecovery ? 'login' : 'inicio',
+  );
   
   // Data State
   const [destinations] = useState<Destination[]>(INITIAL_DESTINATIONS);
