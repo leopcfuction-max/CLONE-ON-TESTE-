@@ -13,6 +13,7 @@ import BookingWizard from './components/BookingWizard';
 import UMLSimulationPanel from './components/UMLSimulationPanel';
 import NearbySuggestions from './components/NearbySuggestions';
 import RefundDashboard from './components/RefundDashboard';
+import AuthScreen from './components/AuthScreen';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab | 'detail' | 'checkout' | 'reembolsos'>('inicio');
@@ -932,109 +933,19 @@ export default function App() {
           />
         )}
 
-        {/* TAB 8: LOGIN/REGISTER client panel */}
+        {/* TAB 8: AUTENTICAÇÃO (Login / Cadastro / Recuperação / Validação) */}
         {activeTab === 'login' && (
-          <div className="max-w-md mx-auto font-sans text-left my-10 animate-fade-in">
-            <div className="bg-white border border-gray-100 rounded-3xl p-8 shadow-[0_12px_50px_rgba(15,38,76,0.06)] relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-32 h-32 bg-[#ff5a5f]/5 rounded-full blur-2xl pointer-events-none -translate-x-1/2 -translate-y-1/2"></div>
-              
-              <div className="relative z-10 text-center space-y-6">
-                <div>
-                  <h1 className="font-display font-extrabold text-2xl text-[#00112f] mb-1">
-                    {isRegisterMode ? 'Crie sua Conta Elite' : 'Acesse seu Portal Concierge'}
-                  </h1>
-                  <p className="text-gray-400 text-xs max-w-xs mx-auto">
-                    {isRegisterMode ? 'Faça parte do clube de viajantes de alto padrão.' : 'Gerencie reservas na classe executiva e consulte seus transfers.'}
-                  </p>
-                </div>
-
-                <form onSubmit={handleLoginSubmit} className="space-y-4 text-left">
-                  {isRegisterMode && (
-                    <div>
-                      <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Nome Completo</label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
-                        <input
-                          type="text"
-                          required
-                          className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#ff5a5f] focus:ring-1 focus:ring-[#ff5a5f]"
-                          placeholder="Ex: Carlos Mendes"
-                          value={loginName}
-                          onChange={(e) => setLoginName(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">E-mail de Cadastro</label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
-                      <input
-                        type="email"
-                        required
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#ff5a5f]"
-                        placeholder="nome@email.net"
-                        value={loginEmail}
-                        onChange={(e) => setLoginEmail(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Sua Senha</label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-10 py-2.5 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#ff5a5f]"
-                        placeholder="Insira sua senha segura"
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 focus:outline-none"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full bg-[#ff5a5f] hover:bg-rose-600 text-white font-sans text-xs font-semibold py-3 rounded-xl shadow-md hover:shadow-lg transition-all uppercase tracking-wider"
-                  >
-                    {isRegisterMode ? 'Finalizar Cadastro' : 'Entrar no Concierge'}
-                  </button>
-                </form>
-
-                <div className="space-y-4 pt-4 border-t border-gray-100 text-xs">
-                  <p className="text-gray-500">
-                    {isRegisterMode ? 'Já possui login cadastrado?' : 'Ainda não é um Membro Elite?'}
-                    <button
-                      onClick={() => setIsRegisterMode(!isRegisterMode)}
-                      className="text-[#ff5a5f] font-bold ml-1 hover:underline"
-                    >
-                      {isRegisterMode ? 'Faça login' : 'Cadastre-se grátis'}
-                    </button>
-                  </p>
-
-                  <button
-                    onClick={() => {
-                      setCurrentUser({ name: 'Visitante VIP', email: 'guest@voyage.com' });
-                      setActiveTab('inicio');
-                    }}
-                    className="text-[11px] text-[#0f264c] font-semibold hover:underline"
-                  >
-                    Acessar temporariamente como Convidado (Guest)
-                  </button>
-                </div>
-
-              </div>
-            </div>
+          <div className="animate-fade-in -my-8">
+            <AuthScreen
+              onAuthenticated={(user) => {
+                setCurrentUser(user);
+                setActiveTab('inicio');
+              }}
+              onGuest={() => {
+                setCurrentUser({ name: 'Visitante', email: 'guest@voyage.com' });
+                setActiveTab('inicio');
+              }}
+            />
           </div>
         )}
 
