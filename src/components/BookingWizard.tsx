@@ -3,6 +3,7 @@ import {
   ShieldCheck, ArrowLeft, ArrowRight, Check, CreditCard, Sparkles, 
   AlertCircle, FileText, Download, Clock, AlertTriangle, RefreshCw, HelpCircle
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import { TravelPackage, Passenger, Reservation } from '../types';
 
 interface BookingWizardProps {
@@ -261,35 +262,170 @@ export default function BookingWizard({ packageData, currentUser, onBookingSucce
     setIsHoldExpired(false);
   };
 
-  const downloadVoucher = () => {
-    const voucherText = `
-=========================================
-      ANGEL VOYAGE - VOUCHER DE CONFIRMAÇÃO
-=========================================
-Código da Reserva: ${confirmationCode}
-Destino: ${packageData.destination}, ${packageData.country}
-Hotel Curado: ${packageData.hotel} (${packageData.stars} Estrelas)
-Voo: ${packageData.flight}
-Passageiros:
-${passengers.map((p, i) => `  [${i + 1}] ${p.fullName} - CPF: ${p.cpf}`).join('\n')}
-Assentos Escolhidos: ${selectedSeats.join(', ')}
+  const downloadVoucher = async () => {
+    const statusLabel = isCashDiscount ? 'CONFIRMADA' : 'PENDENTE';
+    const periodo = '12 Nov 2026 a 20 Nov 2026';
+    const valorTotal = `R$ ${totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const emissionDate = new Date()
+      .toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+      .replace('.', '')
+      .toUpperCase();
 
-Total Pago: R$ ${totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-Forma de Pagamento: ${paymentMethod === 'pix' ? 'Pix À Vista' : `Cartão de Crédito em ${installments}x`}
-Status da Reserva: CONFIRMADA E EMITIDA (POST-SALE ATIVO)
+    // QR code apresentado no check-in com os dados da reserva
+    const qrPayload = [
+      'ANGEL VOYAGE - QUICK CHECK-IN',
+      `Localizador: ${confirmationCode}`,
+      `Status: ${statusLabel}`,
+      `Pacote: ${packageData.title}`,
+      `Periodo: ${periodo}`,
+      `Passageiros: ${passengers.map((p) => p.fullName).join(' | ')}`,
+      `Total: ${valorTotal}`,
+    ].join('\n');
 
-Desejamos a você uma extraordinária jornada de luxo e descanso!
-=========================================
-    Av. Brigadeiro Faria Lima, 3000 | Angel Voyage
-    `;
-    const blob = new Blob([voucherText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Voucher-AngelVoyage-${confirmationCode}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    let qrDataUrl = '';
+    try {
+      qrDataUrl = await QRCode.toDataURL(qrPayload, {
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: 220,
+        color: { dark: '#0f264c', light: '#ffffff' },
+      });
+    } catch {
+      qrDataUrl = '';
+    }
+
+    const passengerRows = passengers
+      .map(
+        (p) => `
+          <div class="pax-row">
+            <span class="pax-name">${p.fullName}</span>
+            <span class="pax-doc">CPF ${p.cpf}</span>
+          </div>`
+      )
+      .join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Voucher ${confirmationCode}</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    color: #0f264c;
+    background: #f4f5f7;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page { width: 210mm; min-height: 297mm; margin: 0 auto; background: #ffffff; padding: 28mm 22mm; }
+  .top { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 18px; }
+  .brand { color: #b08d57; }
+  .brand .name { font-size: 18px; font-weight: 700; letter-spacing: .5px; }
+  .brand .sub { font-size: 10px; letter-spacing: 3px; color: #8a9bb3; text-transform: uppercase; margin-top: 4px; font-family: Arial, sans-serif; }
+  .voucher-tag { text-align: right; }
+  .voucher-tag .title { color: #b08d57; font-size: 14px; letter-spacing: 2px; font-weight: 700; }
+  .voucher-tag .emit { color: #b08d57; font-size: 10px; letter-spacing: 1px; margin-top: 6px; font-family: Arial, sans-serif; }
+  .hero {
+    margin: 22px 0 30px; border-radius: 14px; overflow: hidden; position: relative;
+    background-image: linear-gradient(120deg, rgba(15,38,76,.92), rgba(15,38,76,.55)), url('${packageData.image}');
+    background-size: cover; background-position: center; color: #fff; padding: 22px 24px; min-height: 150px;
+  }
+  .hero .badge { position: absolute; top: 18px; right: 20px; background: #d8f3dc; color: #1b7a43; font-size: 9px; font-weight: 700; letter-spacing: 1px; padding: 5px 12px; border-radius: 20px; font-family: Arial, sans-serif; }
+  .hero-grid { display: flex; gap: 26px; margin-top: 8px; font-family: Arial, sans-serif; }
+  .hero-grid .col .lbl { font-size: 8px; letter-spacing: 1.5px; color: #c6d2e3; text-transform: uppercase; }
+  .hero-grid .col .val { font-size: 11px; margin-top: 4px; font-weight: 700; }
+  .hero .destino { position: absolute; bottom: 18px; left: 24px; }
+  .hero .destino .lbl { font-size: 9px; letter-spacing: 3px; color: #c6d2e3; text-transform: uppercase; font-family: Arial, sans-serif; }
+  .hero .destino .val { font-size: 17px; font-weight: 700; margin-top: 2px; }
+  .details { display: grid; grid-template-columns: 1fr 1fr; row-gap: 26px; column-gap: 30px; }
+  .field .lbl { font-size: 10px; letter-spacing: 2px; color: #b08d57; text-transform: uppercase; font-family: Arial, sans-serif; }
+  .field .val { font-size: 16px; font-weight: 700; margin-top: 6px; }
+  .field .val.accent { color: #b08d57; }
+  .status-pill { display: inline-block; margin-top: 6px; background: #d8f3dc; color: #1b7a43; font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 5px 16px; border-radius: 20px; font-family: Arial, sans-serif; }
+  .status-pill.pending { background: #fff3cd; color: #9a6b00; }
+  .pax-list { margin-top: 6px; }
+  .pax-row { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 0; }
+  .pax-name { font-size: 15px; font-weight: 700; }
+  .pax-doc { font-size: 10px; color: #8a9bb3; font-family: Arial, sans-serif; }
+  .divider { border: none; border-top: 1px solid #e7ebf1; margin: 30px 0; }
+  .footer { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+  .welcome { max-width: 60%; }
+  .welcome .hi { color: #b08d57; font-size: 15px; font-weight: 700; }
+  .welcome p { font-size: 11px; color: #5b6b82; line-height: 1.6; margin-top: 8px; font-family: Arial, sans-serif; }
+  .qr-box { background: #0f264c; border-radius: 14px; padding: 16px; text-align: center; width: 170px; }
+  .qr-box img { width: 120px; height: 120px; background: #fff; border-radius: 8px; padding: 6px; }
+  .qr-box .qr-fallback { width: 120px; height: 120px; background: #fff; border-radius: 8px; margin: 0 auto; display: flex; align-items: center; justify-content: center; color: #0f264c; font-size: 9px; font-family: Arial, sans-serif; }
+  .qr-box .qr-label { color: #c6d2e3; font-size: 9px; letter-spacing: 2px; margin-top: 12px; font-family: Arial, sans-serif; }
+  @media print { body { background: #fff; } .page { padding: 24mm 20mm; } }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="top">
+      <div class="brand">
+        <div class="name">Angel Voyage</div>
+        <div class="sub">Private Concierge Service</div>
+      </div>
+      <div class="voucher-tag">
+        <div class="title">TRAVEL VOUCHER</div>
+        <div class="emit">EMITIDO EM: ${emissionDate}</div>
+      </div>
+    </div>
+
+    <div class="hero">
+      <span class="badge">${statusLabel}</span>
+      <div class="hero-grid">
+        <div class="col"><div class="lbl">Localizador</div><div class="val">${confirmationCode}</div></div>
+        <div class="col"><div class="lbl">Período</div><div class="val">${periodo}</div></div>
+        <div class="col"><div class="lbl">Total Liquidado</div><div class="val">${valorTotal}</div></div>
+        <div class="col"><div class="lbl">Passageiros</div><div class="val">${passengers.length}</div></div>
+      </div>
+      <div class="destino">
+        <div class="lbl">Destino Premium</div>
+        <div class="val">${packageData.title}</div>
+      </div>
+    </div>
+
+    <div class="details">
+      <div class="field"><div class="lbl">Localizador</div><div class="val">${confirmationCode}</div></div>
+      <div class="field"><div class="lbl">Status</div><div><span class="status-pill ${isCashDiscount ? '' : 'pending'}">${statusLabel}</span></div></div>
+      <div class="field"><div class="lbl">Pacote</div><div class="val">${packageData.title}</div></div>
+      <div class="field"><div class="lbl">Período</div><div class="val accent">${periodo}</div></div>
+      <div class="field"><div class="lbl">Passageiros</div><div class="pax-list">${passengerRows}</div></div>
+      <div class="field"><div class="lbl">Valor Total</div><div class="val">${valorTotal}</div></div>
+    </div>
+
+    <hr class="divider" />
+
+    <div class="footer">
+      <div class="welcome">
+        <div class="hi">Seja bem-vindo a ${packageData.destination}.</div>
+        <p>Apresente este documento digital ou impresso no momento do check-in. Seu assistente pessoal estará aguardando na área de desembarque para o translado privativo.</p>
+      </div>
+      <div class="qr-box">
+        ${qrDataUrl ? `<img src="${qrDataUrl}" alt="QR Code de check-in" />` : `<div class="qr-fallback">${confirmationCode}</div>`}
+        <div class="qr-label">QUICK CHECK-IN</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    window.onload = function () {
+      setTimeout(function () { window.print(); }, 350);
+    };
+  </script>
+</body>
+</html>`;
+
+    const printWindow = window.open('', '_blank', 'width=900,height=1000');
+    if (!printWindow) {
+      alert('Habilite os pop-ups para emitir o voucher em PDF.');
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   // Turn time seconds to readable clock MM:SS
